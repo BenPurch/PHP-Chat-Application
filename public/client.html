@@ -1,0 +1,312 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Chat App</title>
+    <style>
+        /* General styling for the page */
+        body { font-family: Arial, sans-serif; max-width: 800px; margin: 0 auto; padding: 20px; }
+        #groupList { cursor: pointer; } /* Make group list items clickable */
+        #groupList li { padding: 8px; background: #f0f0f0; margin-bottom: 5px; border-radius: 4px; } /* Style for group list items */
+        #groupList li:hover { background: #e0e0e0; } /* Hover effect for group list items */
+        #messages { height: 300px; overflow-y: auto; border: 1px solid #ccc; padding: 10px; margin-bottom: 10px; } /* Styling for the messages container */
+        .message { margin-bottom: 8px; padding: 8px; background: #f9f9f9; border-radius: 4px; } /* Styling for individual messages */
+        input, button { padding: 8px; margin-bottom: 10px; } /* Styling for input fields and buttons */
+        button { cursor: pointer; background: #4CAF50; color: white; border: none; border-radius: 4px; } /* Button styling */
+        .section { margin-bottom: 20px; padding: 15px; border: 1px solid #ddd; border-radius: 4px; } /* Styling for sections */
+    </style>
+</head>
+<body>
+    <h1>Chat App</h1>
+    
+    <!-- Section for creating a new user -->
+    <div class="section">
+        <h2>Create User</h2>
+        <input id="username" placeholder="Username" /> <!-- Input field for username -->
+        <button onclick="createUser()">Create</button> <!-- Button to trigger user creation -->
+        <p>Your token: <span id="token"></span></p> <!-- Display the user's token -->
+        <p>Your user ID: <span id="userId"></span></p> <!-- Display the user's ID -->
+    </div>
+    
+    <!-- Section for creating a new group -->
+    <div class="section">
+        <h2>Create Group</h2>
+        <input id="groupName" placeholder="Group Name" /> <!-- Input field for group name -->
+        <button onclick="createGroup()">Create</button> <!-- Button to trigger group creation -->
+    </div>
+    
+    <!-- Section for displaying and selecting groups -->
+    <div class="section">
+        <h2>Groups</h2>
+        <p>Click on a group to join and view messages:</p>
+        <ul id="groupList"></ul> <!-- List to display available groups -->
+    </div>
+    
+    <!-- Section for displaying and sending messages -->
+    <div class="section">
+        <h2>Messages</h2>
+        <div id="messages"></div> <!-- Container for displaying messages -->
+        
+        <input id="messageInput" placeholder="Type a message" /> <!-- Input field for typing messages -->
+        <button onclick="sendMessage()">Send</button> <!-- Button to send a message -->
+    </div>
+
+    <script>
+        // Global variables to store user and group information
+        let token = ''; // Stores the user's authentication token
+        let userId = ''; // Stores the user's ID
+        let currentGroupId = ''; // Stores the ID of the currently selected group
+        
+        // Base URL for the API
+        const API_BASE_URL = 'http://localhost:80/chat-app/public';
+        
+        // Function to create a new user
+        async function createUser() {
+            try {
+                const username = document.getElementById('username').value; // Get the username from the input field
+                if (!username) {
+                    alert('Please enter a username'); // Show an alert if the username is empty
+                    return;
+                }
+                
+                console.log('Creating user:', username); // Log the username for debugging
+                const response = await fetch(`${API_BASE_URL}/users`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username }) // Send the username to the server
+                });
+                
+                if (!response.ok) {
+                    const errorData = await response.json(); // Parse the error response
+                    throw new Error(`Server error: ${errorData.error || response.statusText}`); // Throw an error if the request fails
+                }
+                
+                const data = await response.json(); // Parse the response data
+                console.log('User created:', data); // Log the created user data
+                
+                token = data.token; // Store the token
+                userId = data.user_id; // Store the user ID
+                
+                // Update the DOM to display the token and user ID
+                document.getElementById('token').textContent = token;
+                document.getElementById('userId').textContent = userId;
+                
+                fetchGroups(); // Fetch the list of groups after creating the user
+            } catch (error) {
+                console.error('Error creating user:', error); // Log any errors
+                alert(`Error creating user: ${error.message}`); // Show an alert with the error message
+            }
+        }
+        
+        // Function to create a new group
+        async function createGroup() {
+            try {
+                if (!token) {
+                    alert('Please create a user first'); // Show an alert if no user is logged in
+                    return;
+                }
+                
+                const name = document.getElementById('groupName').value; // Get the group name from the input field
+                if (!name) {
+                    alert('Please enter a group name'); // Show an alert if the group name is empty
+                    return;
+                }
+                
+                console.log('Creating group:', name); // Log the group name for debugging
+                const response = await fetch(`${API_BASE_URL}/groups`, {
+                    method: 'POST',
+                    headers: { 
+                        'Content-Type': 'application/json',
+                        'Authorization': token // Include the user's token in the request headers
+                    },
+                    body: JSON.stringify({ name }) // Send the group name to the server
+                });
+                
+                if (!response.ok) {
+                    const errorData = await response.json(); // Parse the error response
+                    throw new Error(`Server error: ${errorData.error || response.statusText}`); // Throw an error if the request fails
+                }
+                
+                const data = await response.json(); // Parse the response data
+                console.log('Group created:', data); // Log the created group data
+                
+                fetchGroups(); // Fetch the updated list of groups
+            } catch (error) {
+                console.error('Error creating group:', error); // Log any errors
+                alert(`Error creating group: ${error.message}`); // Show an alert with the error message
+            }
+        }
+        
+        // Function to fetch all groups from the server
+        async function fetchGroups() {
+            try {
+                if (!token) {
+                    return; // Exit if no user is logged in
+                }
+                
+                console.log('Fetching groups'); // Log for debugging
+                const response = await fetch(`${API_BASE_URL}/groups`, {
+                    headers: { 'Authorization': token } // Include the user's token in the request headers
+                });
+                
+                if (!response.ok) {
+                    const errorData = await response.json(); // Parse the error response
+                    throw new Error(`Server error: ${errorData.error || response.statusText}`); // Throw an error if the request fails
+                }
+                
+                const groups = await response.json(); // Parse the response data
+                console.log('Groups received:', groups); // Log the received groups
+                
+                const groupList = document.getElementById('groupList'); // Get the group list element
+                groupList.innerHTML = ''; // Clear the existing list
+                
+                if (groups.length === 0) {
+                    groupList.innerHTML = '<li>No groups available. Create one!</li>'; // Display a message if no groups are available
+                    return;
+                }
+                
+                // Loop through the groups and create list items for each one
+                groups.forEach(group => {
+                    const item = document.createElement('li');
+                    item.textContent = `${group.name} (ID: ${group.id})`; // Display the group name and ID
+                    item.onclick = () => selectGroup(group.id); // Set a click handler to select the group
+                    groupList.appendChild(item); // Add the item to the list
+                });
+            } catch (error) {
+                console.error('Error fetching groups:', error); // Log any errors
+                alert(`Error fetching groups: ${error.message}`); // Show an alert with the error message
+            }
+        }
+        
+        // Function to select a group and join it
+        async function selectGroup(groupId) {
+            try {
+                currentGroupId = groupId; // Store the selected group ID
+                console.log('Selected group:', groupId); // Log the selected group ID
+                
+                await joinGroup(groupId); // Join the selected group
+                fetchMessages(); // Fetch messages for the selected group
+            } catch (error) {
+                console.error('Error selecting group:', error); // Log any errors
+                alert(`Error selecting group: ${error.message}`); // Show an alert with the error message
+            }
+        }
+        
+        // Function to join a group
+        async function joinGroup(groupId) {
+            try {
+                console.log('Joining group:', groupId); // Log the group ID for debugging
+                const response = await fetch(`${API_BASE_URL}/groups/${groupId}/join`, {
+                    method: 'POST',
+                    headers: { 
+                        'Content-Type': 'application/json',
+                        'Authorization': token // Include the user's token in the request headers
+                    }
+                });
+                
+                if (!response.ok) {
+                    const errorData = await response.json(); // Parse the error response
+                    throw new Error(`Server error: ${errorData.error || response.statusText}`); // Throw an error if the request fails
+                }
+                
+                console.log('Joined group successfully'); // Log success
+            } catch (error) {
+                console.error('Error joining group:', error); // Log any errors
+                alert(`Error joining group: ${error.message}`); // Show an alert with the error message
+            }
+        }
+        
+        // Function to send a message to the current group
+        async function sendMessage() {
+            try {
+                if (!token || !currentGroupId) {
+                    alert('Please join a group first'); // Show an alert if no group is selected
+                    return;
+                }
+                
+                const messageText = document.getElementById('messageInput').value; // Get the message text from the input field
+                if (!messageText) {
+                    alert('Please enter a message'); // Show an alert if the message is empty
+                    return;
+                }
+                
+                console.log('Sending message to group:', currentGroupId); // Log the group ID for debugging
+                const response = await fetch(`${API_BASE_URL}/messages`, {
+                    method: 'POST',
+                    headers: { 
+                        'Content-Type': 'application/json',
+                        'Authorization': token // Include the user's token in the request headers
+                    },
+                    body: JSON.stringify({
+                        user_id: userId, // Include the user's ID
+                        group_id: currentGroupId, // Include the group ID
+                        message: messageText // Include the message text
+                    })
+                });
+                
+                if (!response.ok) {
+                    const errorData = await response.json(); // Parse the error response
+                    throw new Error(`Server error: ${errorData.error || response.statusText}`); // Throw an error if the request fails
+                }
+                
+                document.getElementById('messageInput').value = ''; // Clear the message input field
+                console.log('Message sent successfully'); // Log success
+                
+                fetchMessages(); // Fetch updated messages after sending
+            } catch (error) {
+                console.error('Error sending message:', error); // Log any errors
+                alert(`Error sending message: ${error.message}`); // Show an alert with the error message
+            }
+        }
+        
+        // Function to fetch messages for the current group
+        async function fetchMessages() {
+            try {
+                if (!token || !currentGroupId) {
+                    return; // Exit if no group is selected
+                }
+                
+                console.log('Fetching messages for group:', currentGroupId); // Log the group ID for debugging
+                const response = await fetch(`${API_BASE_URL}/groups/${currentGroupId}/messages`, {
+                    headers: { 'Authorization': token } // Include the user's token in the request headers
+                });
+                
+                if (!response.ok) {
+                    const errorData = await response.json(); // Parse the error response
+                    throw new Error(`Server error: ${errorData.error || response.statusText}`); // Throw an error if the request fails
+                }
+                
+                const messages = await response.json(); // Parse the response data
+                console.log('Messages received:', messages); // Log the received messages
+                
+                const messageList = document.getElementById('messages'); // Get the messages container
+                messageList.innerHTML = ''; // Clear the existing messages
+                
+                if (messages.length === 0) {
+                    messageList.innerHTML = '<div class="message">No messages in this group yet. Be the first to write!</div>'; // Display a message if no messages are available
+                    return;
+                }
+                
+                // Loop through the messages and create message elements for each one
+                messages.forEach(msg => {
+                    const item = document.createElement('div');
+                    item.className = 'message';
+                    const time = new Date(msg.timestamp).toLocaleTimeString(); // Format the message timestamp
+                    item.textContent = `User ${msg.user_id} [${time}]: ${msg.message}`; // Display the message content
+                    messageList.appendChild(item); // Add the message to the container
+                });
+                
+                // Scroll to the bottom of the messages container
+                messageList.scrollTop = messageList.scrollHeight;
+            } catch (error) {
+                console.error('Error fetching messages:', error); // Log any errors
+                // Display an error message in the messages container
+                document.getElementById('messages').innerHTML = 
+                    '<div class="message error">Error loading messages. Please try again later.</div>';
+            }
+        }
+        
+        // Poll for new messages every 5 seconds
+        setInterval(fetchMessages, 5000);
+    </script>
+</body>
+</html>
