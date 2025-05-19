@@ -483,8 +483,3 @@ If something goes wrong, you might receive one of the following error responses:
 
 ```
 
-
-Thank you so much for considering my application, I really hope I have made a good impression,
-
-Kind Regards,
-Benjamin Purchase
